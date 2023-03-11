@@ -67,6 +67,7 @@ class AOSPJob(BaseJob):
 		self.parser.add_argument('--release', help='upload build to release profile', action='store_true')
 		self.parser.add_argument('--with_gms', help='include gapps', action='store_true')
 		self.parser.add_argument('--repo_sync', help='run repo sync before building', action='store_true')
+		self.parser.add_argument('--logging', help='send full build log instead of error.log', action='store_true')
 		self.parsed_args = self.parser.parse_args(self.args)
 
 		self.device: str = self.parsed_args.device
@@ -144,7 +145,11 @@ class AOSPJob(BaseJob):
 		build_result = AOSPReturnCode.from_code(process.returncode)
 
 		if build_result.needs_logs_upload():
-			with (self.project_dir / str(build_result.log_file)).open("rb") as log_file:
+			if not self.parsed_args.logging and build_result.log_file == "build_log.txt":
+				self.log_file = "out/error.log"
+			else:
+				self.log_file = build_result.log_file
+			with (self.project_dir / str(self.log_file)).open("rb") as log_file:
 				await post_manager.send_document(log_file)
 
 		if build_result is AOSPReturnCode.SUCCESS and UPLOAD_ARTIFACTS:
